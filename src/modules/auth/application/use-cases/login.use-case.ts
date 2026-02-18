@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
-import { v4 as uuidv4 } from 'uuid';
+import { Types } from 'mongoose';
 import ms from 'ms';
 import type { StringValue } from 'ms';
 import { TOKEN_SERVICE, REFRESH_TOKEN_REPOSITORY } from '../../auth.tokens';
@@ -56,7 +56,7 @@ export class LoginUseCase {
       this.configService.get<string>('JWT_REFRESH_EXPIRATION') ?? '7d';
     const now = new Date();
     const rt = RefreshToken.create({
-      id: uuidv4(),
+      id: new Types.ObjectId().toString(),
       userId: user.getId(),
       token: refreshToken,
       expiresAt: new Date(Date.now() + ms(refreshExpiration as StringValue)),

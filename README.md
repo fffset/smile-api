@@ -1,98 +1,111 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Smile API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+REST API built with **NestJS 11**, **TypeScript**, and **MongoDB**. Authentication (JWT + refresh tokens), DDD-style modules, and OpenAPI docs. Optimized for development with **Cursor** and **Claude**.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## Cursor & Claude
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+This repo is set up for AI-assisted development in [Cursor](https://cursor.com) with [Claude](https://claude.ai):
 
-## Project setup
+- **`CLAUDE.md`** — Project rules, architecture, DDD conventions, and examples. Cursor/Claude use it as context so suggestions stay consistent with the codebase.
+- **DDD layout** — Clear module boundaries (auth, user) and layer structure so AI can navigate and suggest changes in the right place.
+- **Conventions** — Single use-case per action, abstract repositories, Swagger on DTOs; all documented so generated code fits the project.
 
-```bash
-$ npm install
-```
+If you use Cursor with Claude, open `CLAUDE.md` for full guidance.
 
-## Compile and run the project
+---
 
-```bash
-# development
-$ npm run start
+## Stack
 
-# watch mode
-$ npm run start:dev
+| Layer        | Tech |
+|-------------|------|
+| Runtime     | Node.js, NestJS 11, Express |
+| Language    | TypeScript 5.7 (strict) |
+| Database    | MongoDB (Mongoose) |
+| Auth        | JWT (access + refresh), Passport |
+| Validation  | class-validator, Zod (env) |
+| Docs        | Swagger/OpenAPI @ `/api` |
 
-# production mode
-$ npm run start:prod
-```
+---
 
-## Run tests
+## Quick start
+
+**Requirements:** Node.js 18+, MongoDB (local or Atlas).
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+git clone https://github.com/YOUR_USERNAME/smile-api.git
+cd smile-api
+cp .env.example .env
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Edit `.env`: set `MONGODB_URI` and `JWT_SECRET` (min 32 chars).
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npm install
+npm run start:dev
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+API: **http://localhost:3000**  
+Swagger: **http://localhost:3000/api**
 
-## Resources
+---
 
-Check out a few resources that may come in handy when working with NestJS:
+## Environment
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+| Variable | Description |
+|----------|-------------|
+| `MONGODB_URI` | MongoDB connection string (e.g. `mongodb://localhost:27017/smile-api` or Atlas `mongodb+srv://...`) |
+| `JWT_SECRET` | Secret for signing tokens (min 32 characters) |
+| `JWT_ACCESS_EXPIRATION` | Access token TTL (default `15m`) |
+| `JWT_REFRESH_EXPIRATION` | Refresh token TTL (default `7d`) |
+| `PORT` | Server port (default `3000`) |
 
-## Support
+---
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+## API overview
 
-## Stay in touch
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/auth/register` | No | Register and get tokens |
+| POST | `/auth/login` | No | Login |
+| POST | `/auth/refresh` | No | Refresh access token |
+| POST | `/auth/logout` | No | Revoke refresh token |
+| GET | `/users/me` | JWT | Current user profile |
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+Full request/response schemas: **http://localhost:3000/api** (Swagger).
+
+---
+
+## Project structure
+
+```
+src/
+├── common/           # Shared: guards, decorators, filters, env schema
+├── modules/
+│   ├── auth/         # Register, login, refresh, logout
+│   └── user/         # Profile (e.g. GET /users/me)
+├── app.module.ts
+└── main.ts
+```
+
+Each module follows a DDD-style layout: `domain/`, `application/use-cases/`, `infrastructure/`, `presentation/`. See **CLAUDE.md** for the full layout and conventions.
+
+---
+
+## Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run start:dev` | Run with watch mode |
+| `npm run build` | Production build |
+| `npm test` | Unit tests |
+| `npm run test:e2e` | E2E tests |
+| `npm run lint` | ESLint |
+| `npm run format` | Prettier |
+
+---
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+UNLICENSED (private). See [LICENSE](LICENSE) if present.

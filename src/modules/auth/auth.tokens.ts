@@ -1,0 +1,2 @@
+export const TOKEN_SERVICE = Symbol('TOKEN_SERVICE');
+export const REFRESH_TOKEN_REPOSITORY = Symbol('REFRESH_TOKEN_REPOSITORY');

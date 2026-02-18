@@ -23,14 +23,12 @@ Token optimization rules:
 
 ---
 
-
 ## Task Scoping
 - Target a single file or use-case per task.
 - Instead of "refactor the module", write "move X to Y" or "change Z in file W".
 - If a bug occurs, provide the exact line and error — do not paste the entire file.
 
 ## Workflow
-- Start every session with: /model sonnet
 - Before any multi-file task, run /plan and wait for confirmation before coding.
 - Run /compact after every 3-4 completed tasks.
 
@@ -95,7 +93,7 @@ npm run format             # Prettier formatting
 
 ### Package versions
 
-**Do not define a fixed version pattern.** Use the package versions that your project (or the Nest CLI, if you used it) installs. When adding Mongoose, JWT, etc., add them without pinning to specific major versions so that the project keeps working with the CLI’s dependency set. If `npm install` fails with peer dependency conflicts, resolve by aligning with the CLI’s versions (e.g. the Nest major that the CLI uses), not by locking to a different major in this doc.
+**Do not define a fixed version pattern.** Use the package versions that your project (or the Nest CLI, if you used it) installs. When adding Mongoose, JWT, etc., add them without pinning to specific major versions so that the project keeps working with the CLI's dependency set. If `npm install` fails with peer dependency conflicts, resolve by aligning with the CLI's versions (e.g. the Nest major that the CLI uses), not by locking to a different major in this doc.
 
 **Nest 11 + JWT:** With NestJS 11, use `@nestjs/jwt@^11.0.0`. Version 10.x only supports `@nestjs/common@^8 || ^9 || ^10` and will cause ERESOLVE peer dependency errors.
 
@@ -212,7 +210,7 @@ src/common/
 **Presentation layer**
 - Controllers call use cases only — never repositories or infrastructure services directly.
 - Use `@CurrentUser()` to extract the authenticated user — never access `req.user` directly.
-- AuthController is not authenticated: mark it with `@Public()`. UserController is authenticated (JwtAuthGuard + RolesGuard where needed).
+- `AuthController` is unauthenticated: apply `@Public()` at **class level** so every endpoint in the controller bypasses `JwtAuthGuard`. `UserController` is authenticated (JwtAuthGuard + RolesGuard where needed).
 
 ---
 
@@ -229,11 +227,11 @@ export class Email {
 
   static create(email: string): Email {
     const trimmed = email.trim().toLowerCase();
-    
+
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
       throw new InvalidEmailException(email);
     }
-    
+
     return new Email(trimmed);
   }
 
@@ -253,8 +251,8 @@ Entities extend `BaseEntity` and encapsulate business rules:
 
 ```typescript
 // src/modules/user/domain/entities/user.entity.ts
-import { BaseEntity } from '@/common/domain/base.entity';
-import { Email } from '../value-objects/email.vo';
+import { BaseEntity } from '@/common/domain/base.entity.js';
+import { Email } from '../value-objects/email.vo.js';
 export type Role = 'USER' | 'ADMIN';
 
 export class User extends BaseEntity {
@@ -311,7 +309,7 @@ All exceptions extend `DomainException`:
 
 ```typescript
 // src/modules/user/domain/exceptions/email-already-exists.exception.ts
-import { DomainException } from '@/common/domain/domain-exception';
+import { DomainException } from '@/common/domain/domain-exception.js';
 
 export class EmailAlreadyExistsException extends DomainException {
   readonly statusCode = 409;
@@ -329,8 +327,8 @@ Domain defines contracts as abstract classes:
 
 ```typescript
 // src/modules/user/domain/repositories/user.repository.interface.ts
-import type { User } from '../entities/user.entity';
-import type { Email } from '../value-objects/email.vo';
+import type { User } from '../entities/user.entity.js';
+import type { Email } from '../value-objects/email.vo.js';
 
 export abstract class UserRepository {
   abstract findById(id: string): Promise<User | null>;
@@ -402,10 +400,10 @@ Infrastructure implements the domain abstract class using Mongoose models:
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { UserRepository } from '../../domain/repositories/user.repository.interface';
-import { User } from '../../domain/entities/user.entity';
-import { Email } from '../../domain/value-objects/email.vo';
-import { USER_MODEL_NAME } from './schemas/user.schema';
+import { UserRepository } from '../../domain/repositories/user.repository.interface.js';
+import { User } from '../../domain/entities/user.entity.js';
+import { Email } from '../../domain/value-objects/email.vo.js';
+import { USER_MODEL_NAME } from './schemas/user.schema.js';
 
 @Injectable()
 export class MongooseUserRepository extends UserRepository {
@@ -470,10 +468,10 @@ One action = one execute() method:
 ```typescript
 // src/modules/user/application/use-cases/get-user-profile.use-case.ts
 import { Injectable, Inject } from '@nestjs/common';
-import { USER_REPOSITORY } from '../../user.tokens';
-import { UserRepository } from '../../domain/repositories/user.repository.interface';
-import { UserNotFoundException } from '../../domain/exceptions/user-not-found.exception';
-import type { UserResponse } from '../dto/user.response';
+import { USER_REPOSITORY } from '../../user.tokens.js';
+import { UserRepository } from '../../domain/repositories/user.repository.interface.js';
+import { UserNotFoundException } from '../../domain/exceptions/user-not-found.exception.js';
+import type { UserResponse } from '../dto/user.response.js';
 
 @Injectable()
 export class GetUserProfileUseCase {
@@ -506,9 +504,9 @@ When AuthModule needs a use case from UserModule:
 ```typescript
 // src/modules/user/user.module.ts
 import { Module } from '@nestjs/common';
-import { USER_REPOSITORY } from './user.tokens';
-import { MongooseUserRepository } from './infrastructure/persistence/mongoose-user.repository';
-import { RegisterUserUseCase } from './application/use-cases/register-user.use-case';
+import { USER_REPOSITORY } from './user.tokens.js';
+import { MongooseUserRepository } from './infrastructure/persistence/mongoose-user.repository.js';
+import { RegisterUserUseCase } from './application/use-cases/register-user.use-case.js';
 
 @Module({
   providers: [
@@ -529,8 +527,8 @@ export class UserModule {}
 ```typescript
 // src/modules/auth/auth.module.ts
 import { Module } from '@nestjs/common';
-import { UserModule } from '../user/user.module'; // ← Import module
-import { RegisterAndLoginUseCase } from './application/use-cases/register-and-login.use-case';
+import { UserModule } from '../user/user.module.js'; // ← Import module
+import { RegisterAndLoginUseCase } from './application/use-cases/register-and-login.use-case.js';
 
 @Module({
   imports: [UserModule], // ← Import the exporting module
@@ -543,7 +541,7 @@ export class AuthModule {}
 ```typescript
 // src/modules/auth/application/use-cases/register-and-login.use-case.ts
 import { Injectable } from '@nestjs/common';
-import { RegisterUserUseCase } from '@/modules/user/application/use-cases/register-user.use-case';
+import { RegisterUserUseCase } from '@/modules/user/application/use-cases/register-user.use-case.js';
 
 @Injectable()
 export class RegisterAndLoginUseCase {
@@ -552,12 +550,11 @@ export class RegisterAndLoginUseCase {
   ) {}
 
   async execute(command: RegisterAndLoginCommand): Promise<LoginResponse> {
-    // Use the injected use case
     const user = await this.registerUser.execute({
       email: command.email,
       password: command.password,
     });
-    
+
     // ... rest of login logic
   }
 }
@@ -570,13 +567,13 @@ export class RegisterAndLoginUseCase {
 ```typescript
 // src/modules/user/presentation/controllers/user.controller.ts
 import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
-import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
-import { RolesGuard } from '@/common/guards/roles.guard';
-import { Roles } from '@/common/decorators/roles.decorator';
-import { CurrentUser } from '@/common/decorators/current-user.decorator';
-import { GetUserProfileUseCase } from '../../application/use-cases/get-user-profile.use-case';
-import { CreateUserUseCase } from '../../application/use-cases/create-user.use-case';
-import type { UserResponse } from '../../application/dto/user.response';
+import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard.js';
+import { RolesGuard } from '@/common/guards/roles.guard.js';
+import { Roles } from '@/common/decorators/roles.decorator.js';
+import { CurrentUser } from '@/common/decorators/current-user.decorator.js';
+import { GetUserProfileUseCase } from '../../application/use-cases/get-user-profile.use-case.js';
+import { CreateUserUseCase } from '../../application/use-cases/create-user.use-case.js';
+import type { UserResponse } from '../../application/dto/user.response.js';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
@@ -604,19 +601,19 @@ export class UserController {
 }
 ```
 
-**AuthController** — not authenticated; use `@Public()` so JWT guard does not apply. Endpoints: login, register, refreshToken, logout:
+**AuthController** — `@Public()` applied at **class level** so every endpoint bypasses `JwtAuthGuard`. Endpoints: login, register, refreshToken, logout:
 
 ```typescript
 // src/modules/auth/presentation/controllers/auth.controller.ts
-import { Controller, Post, Body, UseGuards } from '@nestjs/common';
-import { Public } from '@/common/decorators/public.decorator';
-import { LoginUseCase } from '../../application/use-cases/login.use-case';
-import { RegisterUseCase } from '../../application/use-cases/register.use-case';
-import { RefreshTokenUseCase } from '../../application/use-cases/refresh-token.use-case';
-import { LogoutUseCase } from '../../application/use-cases/logout.use-case';
+import { Controller, Post, Body } from '@nestjs/common';
+import { Public } from '@/common/decorators/public.decorator.js';
+import { LoginUseCase } from '../../application/use-cases/login.use-case.js';
+import { RegisterUseCase } from '../../application/use-cases/register.use-case.js';
+import { RefreshTokenUseCase } from '../../application/use-cases/refresh-token.use-case.js';
+import { LogoutUseCase } from '../../application/use-cases/logout.use-case.js';
 
 @Controller('auth')
-@Public()
+@Public() // ← class-level: all endpoints are public
 export class AuthController {
   constructor(
     private readonly loginUseCase: LoginUseCase,
@@ -660,11 +657,11 @@ export const USER_REPOSITORY = Symbol('USER_REPOSITORY');
 // src/modules/user/user.module.ts
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { USER_REPOSITORY } from './user.tokens';
-import { MongooseUserRepository } from './infrastructure/persistence/mongoose-user.repository';
-import { UserSchema, USER_MODEL_NAME } from './infrastructure/persistence/schemas/user.schema';
-import { GetUserProfileUseCase } from './application/use-cases/get-user-profile.use-case';
-import { UserController } from './presentation/controllers/user.controller';
+import { USER_REPOSITORY } from './user.tokens.js';
+import { MongooseUserRepository } from './infrastructure/persistence/mongoose-user.repository.js';
+import { UserSchema, USER_MODEL_NAME } from './infrastructure/persistence/schemas/user.schema.js';
+import { GetUserProfileUseCase } from './application/use-cases/get-user-profile.use-case.js';
+import { UserController } from './presentation/controllers/user.controller.js';
 
 @Module({
   imports: [
@@ -681,6 +678,63 @@ import { UserController } from './presentation/controllers/user.controller';
   exports: [USER_REPOSITORY],
 })
 export class UserModule {}
+```
+
+### Swagger / OpenAPI
+
+All DTOs and controllers must be decorated for Swagger. Available at `/api`.
+
+```typescript
+// Command DTO — use @ApiProperty for each field
+import { ApiProperty } from '@nestjs/swagger';
+import { IsEmail, IsString, MinLength, MaxLength } from 'class-validator';
+
+export class LoginCommand {
+  @ApiProperty({ example: 'user@example.com' })
+  @IsEmail()
+  email!: string;
+
+  @ApiProperty({ example: 'strongpassword' })
+  @IsString()
+  @MinLength(8)
+  @MaxLength(72)
+  password!: string;
+}
+```
+
+```typescript
+// Controller — use @ApiTags, @ApiBearerAuth, @ApiResponse
+import { ApiTags, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
+
+@ApiTags('auth')
+@Controller('auth')
+@Public()
+export class AuthController { ... }
+
+// For authenticated controllers:
+@ApiTags('users')
+@ApiBearerAuth()
+@Controller('users')
+@UseGuards(JwtAuthGuard)
+export class UserController { ... }
+```
+
+Response DTOs should use `@ApiProperty` so Swagger renders the schema:
+
+```typescript
+export class UserResponse {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  email!: string;
+
+  @ApiProperty({ enum: ['USER', 'ADMIN'] })
+  role!: 'USER' | 'ADMIN';
+
+  @ApiProperty()
+  createdAt!: Date;
+}
 ```
 
 ---
@@ -749,6 +803,14 @@ E2E test files (`test/**`) have `no-unsafe-*` rules turned off (supertest return
 
 All local imports require `.js` extension — required by `nodenext` module resolution.
 
+```typescript
+// ❌ Wrong — missing .js extension
+import { User } from './user.entity';
+
+// ✅ Correct
+import { User } from './user.entity.js';
+```
+
 **Override modifier:** With `noImplicitOverride: true`, any method that overrides a base class method (e.g. `canActivate` in a guard extending `AuthGuard`) must be marked with the `override` keyword.
 
 **consistent-type-imports:** Use `import type { Foo }` for types and interfaces used only in type position. For **abstract classes that you extend** (e.g. `UserRepository`, `TokenServicePort`), use a normal `import { AbstractClass }` — not `import type` — because `extends` needs the constructor value at runtime. The same applies to **domain entities (and any class) used as values**: e.g. `new UserEntity(...)` in a use case or repository requires a normal `import { UserEntity }`, not `import type`.
@@ -781,6 +843,17 @@ export const envSchema = z.object({
 
 `main.ts` calls `envSchema.safeParse(process.env)` before NestJS bootstraps — exits with code 1 on failure.
 Never add a new env variable without adding it to `envSchema` and `.env.example` in the same commit.
+
+**`.env.example` reference:**
+
+```dotenv
+NODE_ENV=development
+PORT=3000
+MONGODB_URI=mongodb://localhost:27017/smile-api
+JWT_SECRET=change-me-to-a-random-string-32-chars-min
+JWT_ACCESS_EXPIRATION=15m
+JWT_REFRESH_EXPIRATION=7d
+```
 
 ---
 
@@ -829,7 +902,31 @@ test/
 
 ### E2E tests (`*.e2e-spec.ts`)
 - Full NestJS app with supertest; real MongoDB (local or test Atlas).
-- Each suite seeds and cleans up in `beforeAll`/`afterAll`.
+- Each suite seeds and cleans up its data. Use `beforeAll` to create the app and seed; `afterAll` to drop collections and close the app. Do not rely on data left by other suites.
+
+```typescript
+// Seed pattern for E2E
+let app: INestApplication;
+let userModel: Model<UserDocument>;
+
+beforeAll(async () => {
+  const module = await Test.createTestingModule({ imports: [AppModule] }).compile();
+  app = module.createNestApplication();
+  // apply same global pipes/filters as main.ts
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  await app.init();
+
+  userModel = module.get<Model<UserDocument>>(getModelToken(USER_MODEL_NAME));
+  // seed test data
+  await userModel.create({ email: 'admin@test.com', passwordHash: '...', role: 'ADMIN' });
+});
+
+afterAll(async () => {
+  await userModel.deleteMany({});
+  await app.close();
+});
+```
+
 - **Config**: Use this exact `test/jest-e2e.json` to handle path aliases (`@/` → `../src/`) correctly:
   ```json
   {
@@ -860,7 +957,7 @@ test/
 - `process.env` is only allowed in `src/common/infrastructure/config/` and `main.ts`.
 - `ConfigService.get<T>(key)` returns `T | undefined`. When passing to third-party APIs that require a defined value (e.g. passport-jwt `secretOrKey`), provide a fallback (e.g. `?? ''`) or assertion so the type is `string` (or the expected type); env is validated at bootstrap so the value will be set at runtime.
 
-**If `.env` is missing:** Create it using `.env.example` as reference. Set `MONGODB_URI` (e.g. `mongodb://localhost:27017/antigravity` or Atlas connection string) and `JWT_SECRET` (at least 32 characters).
+**If `.env` is missing:** Copy `.env.example` and set `MONGODB_URI` and `JWT_SECRET` (minimum 32 characters).
 
 ---
 
@@ -868,7 +965,7 @@ test/
 
 **Authentication & Authorization**
 - Every route must explicitly opt in or out of auth — no implicit public routes.
-- Auth endpoints: mark the controller class with `@Public()`.
+- Auth endpoints: mark the controller class with `@Public()` (class-level).
 - Protected endpoints: `@UseGuards(JwtAuthGuard)` on the method or controller.
 - Role-restricted endpoints: add `@UseGuards(RolesGuard)` + `@Roles('ADMIN')`.
 
@@ -880,7 +977,7 @@ test/
 - Access token TTL: 15 minutes (`JWT_ACCESS_EXPIRATION`).
 - Refresh token TTL: 7 days (`JWT_REFRESH_EXPIRATION`).
 - Minimum `JWT_SECRET` length: 32 characters — enforced at bootstrap by Zod.
-- Refresh tokens: stored in DB in a `RefreshToken` model (userId, refreshToken, expiresAt, revokedAt). On logout, set `revokedAt`; reject tokens where `revokedAt` is set.
+- Refresh tokens: stored in DB (`RefreshToken` collection) with `userId`, `refreshToken`, `expiresAt`, `revokedAt`. On logout, set `revokedAt`; reject tokens where `revokedAt` is set or `expiresAt` is in the past. No automatic rotation on use — each login issues a new token.
 
 **Database**
 - Use Mongoose methods for queries (parameterized by default). Never build query filters from raw string concatenation.
@@ -895,8 +992,9 @@ test/
 **Solution:** Start MongoDB locally or use a valid Atlas (or other) connection string in `.env`. No migrations needed.
 
 ### "Circular dependency detected"
-**Cause:** Two modules importing each other
-**Solution:** Use `forwardRef()` in module imports:
+**Cause:** Two modules importing each other.
+**Preferred fix:** Extract the shared dependency (use case or repository) into a third module that both import. This keeps the dependency graph acyclic.
+**Last resort only:** Use `forwardRef()` if a true circular relationship cannot be avoided:
 ```typescript
 @Module({
   imports: [forwardRef(() => OtherModule)],
@@ -908,14 +1006,14 @@ test/
 **Solution:** Run `npm install` and restart the dev server or TypeScript watch.
 
 ### ESLint: "Missing file extension"
-**Cause:** Local import without `.js`
+**Cause:** Local import without `.js` extension (`nodenext` requires it).
 **Solution:**
 ```typescript
 // ❌ Wrong
-import { User } from './user.entity.ts';
+import { User } from './user.entity';
 
 // ✅ Correct
-import { User } from './user.entity';
+import { User } from './user.entity.js';
 ```
 
 ### E2E tests fail with auth errors
@@ -955,7 +1053,7 @@ Types: `feat`, `fix`, `chore`, `refactor`, `test`, `docs`, `style`, `perf`
 
 Examples:
 ```
-feat(auth): add refresh token rotation on every use
+feat(auth): add logout endpoint with refresh token revocation
 fix(user): prevent duplicate email registration race condition
 chore(deps): upgrade mongoose
 ```
@@ -985,7 +1083,7 @@ One PR per task. PR title follows commit format.
 - Omit the `override` modifier when overriding a base class method (required with noImplicitOverride).
 - Use `implements` for repository/service adapters — use `extends` (and call `super()`).
 - Define DI token Symbols inside domain files — put them in `<context>.tokens.ts`.
-- Let a module inject a use case from another module without that module exporting the use case — add it to the providing module’s `exports`.
+- Let a module inject a use case from another module without that module exporting the use case — add it to the providing module's `exports`.
 - Call repositories or infrastructure services from controllers — always through a use case.
 - Add `@Injectable()` or any NestJS decorator in the domain layer.
 - Access `req.user` directly in controllers — use `@CurrentUser()`.

@@ -153,7 +153,7 @@ src/modules/<context>/
 ├── presentation/
 │   ├── controllers/
 │   │   └── <context>.controller.ts
-│   └── serializers/
+│   └── serializers/                             # Optional; not used in current project (responses use DTO/use-case output)
 │       └── <entity>.serializer.ts               # Strips private fields (e.g. password)
 │
 ├── <context>.module.ts
@@ -185,7 +185,7 @@ src/common/
 
 ### Key Files
 
-- `src/app.module.ts` — Root module: ConfigModule (global), MongooseModule.forRootAsync (use MONGODB_URI from ConfigService), UserModule, AuthModule
+- `src/app.module.ts` — Root module: ConfigModule (global), AppMongooseModule (Mongoose via `src/common/infrastructure/mongoose/mongoose.module.ts`, forRootAsync with MONGODB_URI from ConfigService), UserModule, AuthModule
 - `src/main.ts` — Bootstrap: Zod env validation → exit(1) on failure, global ValidationPipe, DomainExceptionFilter, Swagger setup (`DocumentBuilder` + `SwaggerModule.setup('api', app, document)`)
 - Mongoose schemas live in `src/modules/<context>/infrastructure/persistence/schemas/`. User: email, passwordHash, role (USER | ADMIN). RefreshToken: userId, refreshToken, expiresAt, revokedAt; logout sets revokedAt; on each refresh, issue new token and set revokedAt on the old one (rotation).
 
@@ -564,26 +564,22 @@ export class RegisterAndLoginUseCase {
 
 ### Controller with Guards and Decorators
 
-**UserController** — authenticated; `getProfile` for USER/ADMIN, `create` only ADMIN:
+**UserController** — authenticated; `getProfile` for USER/ADMIN. Optionally add `create` (POST, ADMIN-only) with `CreateUserUseCase` and `CreateUserCommand` when admin user creation is needed; the current project implements only `getProfile`.
 
 ```typescript
 // src/modules/user/presentation/controllers/user.controller.ts
-import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { GetUserProfileUseCase } from '../../application/use-cases/get-user-profile.use-case';
-import { CreateUserUseCase } from '../../application/use-cases/create-user.use-case';
 import type { UserResponse } from '../../application/dto/user.response';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 export class UserController {
-  constructor(
-    private readonly getUserProfile: GetUserProfileUseCase,
-    private readonly createUser: CreateUserUseCase,
-  ) {}
+  constructor(private readonly getUserProfileUseCase: GetUserProfileUseCase) {}
 
   @Get('me')
   @UseGuards(RolesGuard)
@@ -591,26 +587,19 @@ export class UserController {
   async getProfile(
     @CurrentUser() user: { id: string; email: string; role: string },
   ): Promise<UserResponse> {
-    return this.getUserProfile.execute(user.id);
-  }
-
-  @Post()
-  @UseGuards(RolesGuard)
-  @Roles('ADMIN')
-  async create(@Body() command: CreateUserCommand): Promise<UserResponse> {
-    return this.createUser.execute(command);
+    return this.getUserProfileUseCase.execute(user.id);
   }
 }
 ```
 
-**AuthController** — `@Public()` applied at **class level** so every endpoint bypasses `JwtAuthGuard`. Endpoints: login, register, refreshToken, logout:
+**AuthController** — `@Public()` applied at **class level** so every endpoint bypasses `JwtAuthGuard`. Endpoints: login, register, refresh, logout:
 
 ```typescript
 // src/modules/auth/presentation/controllers/auth.controller.ts
 import { Controller, Post, Body } from '@nestjs/common';
 import { Public } from '@/common/decorators/public.decorator';
 import { LoginUseCase } from '../../application/use-cases/login.use-case';
-import { RegisterUseCase } from '../../application/use-cases/register.use-case';
+import { RegisterAndLoginUseCase } from '../../application/use-cases/register-and-login.use-case';
 import { RefreshTokenUseCase } from '../../application/use-cases/refresh-token.use-case';
 import { LogoutUseCase } from '../../application/use-cases/logout.use-case';
 
@@ -619,7 +608,7 @@ import { LogoutUseCase } from '../../application/use-cases/logout.use-case';
 export class AuthController {
   constructor(
     private readonly loginUseCase: LoginUseCase,
-    private readonly registerUseCase: RegisterUseCase,
+    private readonly registerAndLoginUseCase: RegisterAndLoginUseCase,
     private readonly refreshTokenUseCase: RefreshTokenUseCase,
     private readonly logoutUseCase: LogoutUseCase,
   ) {}
@@ -631,11 +620,11 @@ export class AuthController {
 
   @Post('register')
   async register(@Body() command: RegisterCommand) {
-    return this.registerUseCase.execute(command);
+    return this.registerAndLoginUseCase.execute(command);
   }
 
   @Post('refresh')
-  async refreshToken(@Body() body: { refreshToken: string }) {
+  async refresh(@Body() body: { refreshToken: string }) {
     return this.refreshTokenUseCase.execute(body.refreshToken);
   }
 
@@ -662,6 +651,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { USER_REPOSITORY } from './user.tokens';
 import { MongooseUserRepository } from './infrastructure/persistence/mongoose-user.repository';
 import { UserSchema, USER_MODEL_NAME } from './infrastructure/persistence/schemas/user.schema';
+import { RegisterUserUseCase } from './application/use-cases/register-user.use-case';
 import { GetUserProfileUseCase } from './application/use-cases/get-user-profile.use-case';
 import { UserController } from './presentation/controllers/user.controller';
 
@@ -674,10 +664,11 @@ import { UserController } from './presentation/controllers/user.controller';
       provide: USER_REPOSITORY,
       useClass: MongooseUserRepository,
     },
+    RegisterUserUseCase,
     GetUserProfileUseCase,
   ],
   controllers: [UserController],
-  exports: [USER_REPOSITORY],
+  exports: [USER_REPOSITORY, RegisterUserUseCase],
 })
 export class UserModule {}
 ```
@@ -761,8 +752,9 @@ DI tokens are `Symbol`s defined in `<context>.tokens.ts` alongside the module ro
 
 Current tokens:
 ```
-user.tokens.ts:  USER_REPOSITORY  →  MongooseUserRepository
-auth.tokens.ts:  TOKEN_SERVICE    →  JwtTokenService
+user.tokens.ts:  USER_REPOSITORY           →  MongooseUserRepository
+auth.tokens.ts:  TOKEN_SERVICE             →  JwtTokenService
+auth.tokens.ts:  REFRESH_TOKEN_REPOSITORY  →  MongooseRefreshTokenRepository
 ```
 
 Always use `@Inject(TOKEN)` with the abstract class as the constructor type (see DDD Rules for why abstract class instead of interface):
@@ -872,6 +864,8 @@ JWT_REFRESH_EXPIRATION=7d
 | **Unit**   | `src/` (co-located or `__tests__/`) | `*.spec.ts`      | `npm test`  | `package.json` jest |
 | **E2E**    | `test/<context>/`     | `*.e2e-spec.ts`  | `npm run test:e2e` | `test/jest-e2e.json` |
 
+The project does not yet contain any `*.spec.ts` or `*.e2e-spec.ts` files; the layout below is the target structure when tests are added.
+
 **Layout:**
 
 ```
@@ -919,7 +913,7 @@ beforeAll(async () => {
   const module = await Test.createTestingModule({ imports: [AppModule] }).compile();
   app = module.createNestApplication();
   // apply same global pipes/filters as main.ts
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
   await app.init();
 
   userModel = module.get<Model<UserDocument>>(getModelToken(USER_MODEL_NAME));

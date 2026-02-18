@@ -386,7 +386,7 @@ export class RefreshTokenDocument extends Document {
   @Prop({ required: true })
   expiresAt!: Date;
 
-  @Prop({ default: null })
+  @Prop({ type: Date, default: null })
   revokedAt!: Date | null;
 }
 
@@ -997,6 +997,15 @@ afterAll(async () => {
 ### "Can't reach database server" / MongoDB connection errors
 **Cause:** MongoDB not running or wrong `MONGODB_URI`
 **Solution:** Start MongoDB locally or use a valid Atlas (or other) connection string in `.env`. No migrations needed.
+
+### "CannotDetermineTypeError" for nullable Mongoose fields
+**Cause:** `@Prop({ default: null })` on a `Date | null` union type — Mongoose cannot infer the type from a union.
+**Solution:** Always pass `type` explicitly for nullable fields:
+```typescript
+@Prop({ type: Date, default: null })
+revokedAt!: Date | null;
+```
+Same rule applies to any `T | null` prop: `@Prop({ type: T, default: null })`.
 
 ### "Circular dependency detected"
 **Cause:** Two modules importing each other.

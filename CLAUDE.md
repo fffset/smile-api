@@ -101,7 +101,7 @@ npm run format             # Prettier formatting
 
 **Nest 11 + Swagger:** Use `@nestjs/swagger@^11.0.0` to ensure compatibility with Nest 11/Express.
 
-**UUID:** Use `uuid@9` (and `@types/uuid@9`). Version 10+ / 11+ has dropped CommonJS support in ways that break Jest with standard config (Unexpected token 'export').
+**Mongoose _id:** Mongoose schemas use ObjectId for `_id` by default. When creating new User or RefreshToken entities that are persisted (e.g. in `RegisterUserUseCase`, `LoginUseCase`, `RefreshTokenUseCase`), use `new mongoose.Types.ObjectId().toString()` for the id. Do **not** use uuid for document ids — MongoDB expects a 24-character hex string for ObjectId and will throw `BSONError: input must be a 24 character hex string` otherwise.
 
 **Deprecation warnings and vulnerabilities:** `npm install` may show deprecation warnings (e.g. inflight, npmlog, rimraf, glob, tar) from transitive dependencies. These can be ignored. For security: run `npm audit`, then `npm audit fix`; use `npm audit fix --force` only if you accept possible breaking changes.
 
@@ -365,6 +365,7 @@ export class UserDocument extends Document {
 
 export const UserSchema = SchemaFactory.createForClass(UserDocument);
 ```
+User (and RefreshToken) documents use default `_id` type ObjectId. In use cases that create new users or refresh tokens, set `id: new Types.ObjectId().toString()` (from `mongoose`) so persistence works.
 
 RefreshToken schema example:
 
@@ -991,6 +992,10 @@ afterAll(async () => {
 ### "Can't reach database server" / MongoDB connection errors
 **Cause:** MongoDB not running or wrong `MONGODB_URI`
 **Solution:** Start MongoDB locally or use a valid Atlas (or other) connection string in `.env`. No migrations needed.
+
+### BSONError: input must be a 24 character hex string (ObjectId)
+**Cause:** A uuid or other non-ObjectId string was used for a document `_id` or for a field typed as `Types.ObjectId` (e.g. RefreshToken `userId`). Mongoose expects ObjectId = 24-char hex.
+**Solution:** In use cases that create User or RefreshToken entities, use `import { Types } from 'mongoose'` and set `id: new Types.ObjectId().toString()`. Do not use uuid for MongoDB document ids.
 
 ### "CannotDetermineTypeError" for nullable Mongoose fields
 **Cause:** `@Prop({ default: null })` on a `Date | null` union type — Mongoose cannot infer the type from a union.
